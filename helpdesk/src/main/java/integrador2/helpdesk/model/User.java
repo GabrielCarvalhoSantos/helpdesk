@@ -23,5 +23,5 @@ public class User {
     private UserType tipo;               // CLIENTE ou TECNICO
 
     @Builder.Default
-    private Boolean ativo = true;
+    private Boolean ativo = false;
 }
