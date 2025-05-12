@@ -1,5 +1,6 @@
 package integrador2.helpdesk.security;
 
+import integrador2.helpdesk.model.User;
 import integrador2.helpdesk.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.*;
@@ -13,14 +14,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        var user = repo.findByEmail(email)
+        User u = repo.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado"));
 
-        return User.builder()
-                .username(user.getEmail())
-                .password(user.getSenhaHash())
-                .roles(user.getTipo().name())    // CLIENTE ou TECNICO
-                .disabled(!user.getAtivo())
+        return org.springframework.security.core.userdetails.User
+                .withUsername(u.getEmail())
+                .password(u.getSenhaHash())
+                .roles(u.getTipo().name())        // CLIENTE ou TECNICO
                 .build();
     }
 }
