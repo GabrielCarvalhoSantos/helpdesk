@@ -1,4 +1,5 @@
 version: "3.9"
+
 services:
   db:
     image: postgres:16
@@ -14,10 +15,12 @@ services:
     build: .
     depends_on: [db]
     environment:
-      DB_URL: jdbc:postgresql://db:5432/helpdeskdb
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-helpdeskdb}
       DB_USER: ${DB_USER:-postgres}
       DB_PASS: ${DB_PASS:-postgres}
+
       JWT_SECRET: ${JWT_SECRET}
+
       MAIL_USER: ${MAIL_USER}
       MAIL_PASS: ${MAIL_PASS}
       SPRING_MAIL_HOST: smtp.gmail.com
