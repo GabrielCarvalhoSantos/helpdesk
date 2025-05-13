@@ -71,4 +71,23 @@ public class TicketService {
                 .prazoSla(t.getPrazoSla())
                 .build();
     }
+
+    // dentro de TicketService.java
+    @Transactional
+    public void mudarCategoria(Long ticketId, Long novaCategoriaId, User tecnico) {
+
+        Ticket t = ticketRepo.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
+
+        Category nova = categoryRepo.findById(novaCategoriaId)
+                .orElseThrow(() -> new IllegalArgumentException("Categoria inválida"));
+
+        Category antiga = t.getCategoria();
+        t.setCategoria(nova);
+        ticketRepo.save(t);
+
+        historySrv.log(t, tecnico, null, null,
+                "Categoria alterada de %s para %s".formatted(antiga.getNome(), nova.getNome()));
+    }
+
 }

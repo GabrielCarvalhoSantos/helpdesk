@@ -8,9 +8,9 @@ import integrador2.helpdesk.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 
 @RestController
 @RequestMapping("/api/v1/tickets")
@@ -20,37 +20,43 @@ public class TicketController {
     private final TicketService service;
     private final UserRepository userRepo;
 
-    /** Abre um novo chamado (cliente autenticado) */
     @PostMapping
     public ResponseEntity<TicketResponse> abrir(@RequestBody TicketRequest dto,
-                                                @AuthenticationPrincipal(expression = "username") String email) {
+                                                @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
 
-        User usuario = userRepo.findByEmail(email)
+        User cliente = userRepo.findByEmail(principal.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
 
-        TicketResponse resp = service.criar(dto, usuario);
-        return ResponseEntity.status(201).body(resp);
+        return ResponseEntity.status(201).body(service.criar(dto, cliente));
     }
 
-    /** Altera o status de um chamado (técnico autenticado) */
     @PutMapping("/{id}/status")
-    public ResponseEntity<Void> mudarStatus(@PathVariable Long id,
-                                            @RequestBody TicketStatusDTO body,
-                                            @AuthenticationPrincipal(expression = "username") String email) {
+    public void mudarStatus(@PathVariable Long id,
+                            @RequestBody TicketStatusDTO body,
+                            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
 
-        User usuario = userRepo.findByEmail(email)
+        User usuario = userRepo.findByEmail(principal.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
 
         service.mudarStatus(id, body.getNovoStatus(), usuario);
-        return ResponseEntity.ok().build();
     }
 
-    /** Lista chamados pelo status (paginado) */
     @GetMapping
     public Page<TicketResponse> listar(@RequestParam Status status,
-                                       @RequestParam(defaultValue = "0") int page,
-                                       @RequestParam(defaultValue = "10") int size) {
+                                       @RequestParam int page,
+                                       @RequestParam int size) {
+        return service.listarPorStatus(status, PageRequest.of(page, size));
+    }
 
-        return service.listarPorStatus(status, PageRequest.of(page, size, Sort.by("abertoEm").descending()));
+    @PutMapping("/{id}/categoria")
+    @PreAuthorize("hasRole('TECNICO')")
+    public void mudarCategoria(@PathVariable Long id,
+                               @RequestParam Long novaCategoriaId,
+                               @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User tecnico = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        service.mudarCategoria(id, novaCategoriaId, tecnico);
     }
 }

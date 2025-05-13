@@ -19,4 +19,13 @@ public class EmailService {
         msg.setText("Sua conta foi criada com sucesso!\nAcesse o sistema e abra seus chamados.");
         mail.send(msg);
     }
+
+    public void enviarCodigo(String destino, String codigo) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(destino);
+        msg.setSubject("Seu código de verificação");
+        msg.setText("Digite o código a seguir para ativar a conta: " + codigo);
+        mail.send(msg);
+    }
+
 }
