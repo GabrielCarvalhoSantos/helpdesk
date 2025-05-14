@@ -20,9 +20,10 @@ public class JwtUtil {
         this.expirationMs = exp;
     }
 
-    public String generate(String username) {
+    public String generate(String username, String role) {
         return Jwts.builder()
                 .setSubject(username)
+                .claim("role", role)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
                 .signWith(key, SignatureAlgorithm.HS256)

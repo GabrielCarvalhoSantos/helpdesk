@@ -83,8 +83,13 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody @Valid LoginRequest req) {
+
         authMgr.authenticate(
                 new UsernamePasswordAuthenticationToken(req.getEmail(), req.getSenha()));
-        return ResponseEntity.ok(new LoginResponse(jwtUtil.generate(req.getEmail())));
+
+        User u = userRepo.findByEmail(req.getEmail()).orElseThrow();
+        String token = jwtUtil.generate(u.getEmail(), u.getTipo().name());   // 👈
+
+        return ResponseEntity.ok(new LoginResponse(token));
     }
 }
