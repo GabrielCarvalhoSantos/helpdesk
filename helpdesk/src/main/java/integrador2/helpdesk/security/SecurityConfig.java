@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
+import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -48,4 +50,17 @@ public class SecurityConfig {
     AuthenticationManager authManager(AuthenticationConfiguration cfg) throws Exception {
         return cfg.getAuthenticationManager();
     }
+
+    @Bean
+    RoleHierarchy roleHierarchy() {
+        var rh = new RoleHierarchyImpl();
+        rh.setHierarchy("""
+        ROLE_GESTOR  > ROLE_TECNICO
+        ROLE_TECNICO > ROLE_CLIENTE
+        """);
+
+        return rh;
+    }
+
 }
+

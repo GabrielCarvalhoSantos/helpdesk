@@ -23,13 +23,13 @@ public class CategoryController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('TECNICO')")
+    @PreAuthorize("hasRole('GESTOR')")
     public ResponseEntity<CategoryResponse> criar(@RequestBody CategoryRequest req) {
         return ResponseEntity.status(201).body(service.criar(req));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('TECNICO')")
+    @PreAuthorize("hasRole('GESTOR')")
     public CategoryResponse atualizar(@PathVariable Long id,
                                       @RequestBody CategoryRequest req) {
         return service.atualizar(id, req);

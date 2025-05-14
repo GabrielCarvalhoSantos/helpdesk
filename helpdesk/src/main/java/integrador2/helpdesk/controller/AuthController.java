@@ -22,21 +22,18 @@ import org.springframework.web.bind.annotation.*;
 import java.security.SecureRandom;
 import java.time.Instant;
 
-/* …imports… */
-
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UserRepository             userRepo;
+    private final UserRepository userRepo;
     private final VerificationCodeRepository codeRepo;
-    private final PasswordEncoder            encoder;
-    private final EmailService               emailService;
-    private final AuthenticationManager      authMgr;
-    private final JwtUtil                    jwtUtil;
+    private final PasswordEncoder encoder;
+    private final EmailService emailService;
+    private final AuthenticationManager authMgr;
+    private final JwtUtil jwtUtil;
 
-    /* ---------- REGISTRO ---------- */
     @PostMapping("/register")
     public ResponseEntity<String> register(@RequestBody @Valid LoginRequest req) {
 
@@ -46,7 +43,6 @@ public class AuthController {
         if (userRepo.existsByEmail(email))
             return ResponseEntity.badRequest().body("E‑mail já cadastrado");
 
-        /* gera e salva código */
         String codigo = "%06d".formatted(new SecureRandom().nextInt(1_000_000));
         codeRepo.deleteByEmail(email);
         codeRepo.save(VerificationCode.builder()
@@ -55,7 +51,6 @@ public class AuthController {
                 .expiresAt(Instant.now().plusSeconds(900))
                 .build());
 
-        /* cria usuário inativo */
         userRepo.save(User.builder()
                 .nome(email)
                 .email(email)
@@ -68,7 +63,6 @@ public class AuthController {
         return ResponseEntity.ok("Código enviado. Use /auth/verify-code.");
     }
 
-    /* ---------- VERIFICA ---------- */
     @PostMapping("/verify-code")
     @Transactional
     public ResponseEntity<String> verify(@RequestBody @Valid VerifyDTO dto) {
@@ -87,7 +81,6 @@ public class AuthController {
         return ResponseEntity.ok("Conta verificada! Faça login.");
     }
 
-    /* ---------- LOGIN ---------- */
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@RequestBody @Valid LoginRequest req) {
         authMgr.authenticate(

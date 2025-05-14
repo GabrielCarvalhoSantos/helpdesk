@@ -16,7 +16,7 @@ public class Ticket {
 
     @Column(nullable = false)
     private String titulo;
-    @Lob @Column(nullable = false)
+    @Column(nullable = false)
     private String descricao;
 
     @Enumerated(EnumType.STRING) @Column(nullable = false)
@@ -36,6 +36,10 @@ public class Ticket {
     private Instant prazoSla;
     @Builder.Default private Instant abertoEm = Instant.now();
     private Instant fechadoEm;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "departamento_id")   // ← garante o nome da coluna
+    private Department departamento;
 
     /** atualiza timestamp sempre que salvar */
     @PreUpdate

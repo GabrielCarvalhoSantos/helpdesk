@@ -41,12 +41,7 @@ public class TicketController {
         service.mudarStatus(id, body.getNovoStatus(), usuario);
     }
 
-    @GetMapping
-    public Page<TicketResponse> listar(@RequestParam Status status,
-                                       @RequestParam int page,
-                                       @RequestParam int size) {
-        return service.listarPorStatus(status, PageRequest.of(page, size));
-    }
+
 
     @PutMapping("/{id}/categoria")
     @PreAuthorize("hasRole('TECNICO')")
@@ -58,5 +53,40 @@ public class TicketController {
                 .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
 
         service.mudarCategoria(id, novaCategoriaId, tecnico);
+    }
+
+    @PutMapping("/{id}/cancel")
+    public void cancelar(@PathVariable Long id,
+                         @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal){
+        var cliente = userRepo.findByEmail(principal.getUsername()).orElseThrow();
+        service.cancelarChamado(id, cliente);
+    }
+
+    @PutMapping("/{id}/assign") @PreAuthorize("hasRole('TECNICO')")
+    public void assign(@PathVariable Long id,
+                       @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal){
+        var tecnico = userRepo.findByEmail(principal.getUsername()).orElseThrow();
+        service.atribuirTecnico(id, tecnico);
+    }
+
+    @PutMapping("/{id}/resolve")
+    @PreAuthorize("hasAnyRole('TECNICO','GESTOR')")
+    public void resolver(@PathVariable Long id,
+                         @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User tecnico = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        service.mudarStatus(id, Status.RESOLVIDO, tecnico);
+    }
+
+    @GetMapping
+    public Object listar(@RequestParam Status status,
+                         @RequestParam(required = false) Integer page,
+                         @RequestParam(required = false) Integer size) {
+
+        return (page == null || size == null)
+                ? service.listarTodos(status)
+                : service.listarPorStatus(status,page,size);
     }
 }
