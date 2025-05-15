@@ -86,11 +86,15 @@ public class TicketController {
     @GetMapping
     public Object listar(@RequestParam Status status,
                          @RequestParam(required = false) Integer page,
-                         @RequestParam(required = false) Integer size) {
+                         @RequestParam(required = false) Integer size,
+                         @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User usuario = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
 
         return (page == null || size == null)
-                ? service.listarTodos(status)
-                : service.listarPorStatus(status,page,size);
+                ? service.listarTodos(status, usuario)
+                : service.listarPorStatus(status, page, size, usuario);
     }
 
     @GetMapping("/{id}")

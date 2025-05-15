@@ -66,15 +66,30 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<TicketResponse> listarTodos(Status st){
+    public List<TicketResponse> listarTodos(Status st, User usuarioAutenticado) {
+        // Se o usuário for CLIENTE, mostrar apenas seus próprios chamados
+        if (usuarioAutenticado.getTipo() == UserType.CLIENTE) {
+            return ticketRepo.findByStatusAndCliente_Id(st, usuarioAutenticado.getId()).stream()
+                    .map(this::toResponse)
+                    .toList();
+        }
+
+        // Para GESTOR e TECNICO, mostrar todos os chamados (mantém o comportamento atual)
         return ticketRepo.findByStatus(st).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public Page<TicketResponse> listarPorStatus(Status st,int page,int size){
-        return ticketRepo.findByStatus(st, PageRequest.of(page,size))
+    public Page<TicketResponse> listarPorStatus(Status st, int page, int size, User usuarioAutenticado) {
+        // Se o usuário for CLIENTE, mostrar apenas seus próprios chamados
+        if (usuarioAutenticado.getTipo() == UserType.CLIENTE) {
+            return ticketRepo.findByStatusAndCliente_Id(st, usuarioAutenticado.getId(), PageRequest.of(page, size))
+                    .map(this::toResponse);
+        }
+
+        // Para GESTOR e TECNICO, mostrar todos os chamados (mantém o comportamento atual)
+        return ticketRepo.findByStatus(st, PageRequest.of(page, size))
                 .map(this::toResponse);
     }
 
@@ -120,11 +135,25 @@ public class TicketService {
     }
 
     @Transactional
-    public void atribuirTecnico(Long id, User tecnico){
-        if (tecnico==null || tecnico.getTipo()!=UserType.TECNICO)
+    public void atribuirTecnico(Long id, User tecnico) {
+        if (tecnico == null || tecnico.getTipo() != UserType.TECNICO) {
             throw new IllegalArgumentException("Somente técnicos podem assumir");
+        }
 
-        Ticket t = ticketRepo.findById(id).orElseThrow();
+        Ticket t = ticketRepo.findById(id).orElseThrow(
+                () -> new IllegalArgumentException("Chamado não encontrado")
+        );
+
+        // Verificar se já existe um técnico atribuído
+        if (t.getTecnico() != null) {
+            throw new IllegalStateException("Este chamado já está sendo atendido por " + t.getTecnico().getNome());
+        }
+
+        // Verificar se o chamado está em um estado que pode ser assumido (apenas ABERTO)
+        if (t.getStatus() != Status.ABERTO) {
+            throw new IllegalStateException("Apenas chamados com status ABERTO podem ser assumidos");
+        }
+
         t.setTecnico(tecnico);
         t.setStatus(Status.EM_ATENDIMENTO);
         ticketRepo.save(t);
@@ -137,7 +166,9 @@ public class TicketService {
         Ticket ticket = ticketRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
 
-        verificarPermissaoAcesso(ticket, usuario);
+        if (usuario.getTipo() == UserType.CLIENTE && !ticket.getCliente().getId().equals(usuario.getId())) {
+            throw new AccessDeniedException("Você não tem permissão para acessar este chamado");
+        }
 
         return TicketDetailResponse.fromTicket(ticket);
     }
