@@ -140,9 +140,12 @@ public class TicketController {
     public ResponseEntity<Void> addComment(
             @PathVariable Long id,
             @RequestBody CommentRequest request,
-            @AuthenticationPrincipal User principal) {
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
 
-        service.addComment(id, request.getComment(), principal);
+        User usuario = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        service.addComment(id, request.getComment(), usuario);
         return ResponseEntity.ok().build();
     }
 }
