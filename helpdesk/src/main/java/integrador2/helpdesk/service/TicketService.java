@@ -162,4 +162,31 @@ public class TicketService {
             throw new AccessDeniedException("Você não tem permissão para acessar este chamado");
         }
     }
+
+    @Transactional
+    public void addComment(Long ticketId, String comment, User user) {
+        Ticket ticket = ticketRepo.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
+
+        // Verificar se o usuário tem permissão (é o técnico, gestor ou cliente do chamado)
+        boolean hasAccess = ticket.getCliente().getId().equals(user.getId()) ||
+                (ticket.getTecnico() != null && ticket.getTecnico().getId().equals(user.getId())) ||
+                user.getTipo() == UserType.GESTOR;
+
+        if (!hasAccess) {
+            throw new AccessDeniedException("Você não tem permissão para adicionar comentários a este chamado");
+        }
+
+        historySrv.log(ticket, user, null, null, comment);
+    }
+
+    public List<TicketResponse> getTicketsByTecnico(User tecnico) {
+        // Buscar chamados atribuídos ao técnico
+        List<Ticket> tickets = ticketRepo.findByTecnicoId(tecnico.getId());
+
+        // Mapear para DTO de resposta
+        return tickets.stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
 }

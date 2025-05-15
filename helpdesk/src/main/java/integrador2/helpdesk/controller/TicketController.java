@@ -2,6 +2,7 @@ package integrador2.helpdesk.controller;
 
 import integrador2.helpdesk.dto.*;
 import integrador2.helpdesk.enums.Status;
+import integrador2.helpdesk.model.Ticket;
 import integrador2.helpdesk.model.User;
 import integrador2.helpdesk.repository.UserRepository;
 import integrador2.helpdesk.service.TicketService;
@@ -116,5 +117,28 @@ public class TicketController {
         List<TicketHistoryResponse> history = service.getTicketHistory(id, usuario);
 
         return ResponseEntity.ok(history);
+    }
+
+    @GetMapping("/my-tickets")
+    @PreAuthorize("hasAnyRole('TECNICO', 'GESTOR')")
+    public ResponseEntity<List<TicketResponse>> getMyTickets(
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User tecnico = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        List<TicketResponse> tickets = service.getTicketsByTecnico(tecnico);
+        return ResponseEntity.ok(tickets);
+    }
+
+    @PostMapping("/{id}/comment")
+    @PreAuthorize("hasAnyRole('TECNICO', 'GESTOR')")
+    public ResponseEntity<Void> addComment(
+            @PathVariable Long id,
+            @RequestBody CommentRequest request,
+            @AuthenticationPrincipal User principal) {
+
+        service.addComment(id, request.getComment(), principal);
+        return ResponseEntity.ok().build();
     }
 }
