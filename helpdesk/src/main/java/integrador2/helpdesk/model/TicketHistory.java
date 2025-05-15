@@ -19,6 +19,6 @@ public class TicketHistory {
     @Enumerated(EnumType.STRING) private Status deStatus;
     @Enumerated(EnumType.STRING) private Status paraStatus;
 
-    @Lob private String acao;
+    private String acao;
     @Builder.Default private Instant criadoEm = Instant.now();
 }

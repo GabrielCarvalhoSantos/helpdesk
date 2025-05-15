@@ -2,6 +2,7 @@ package integrador2.helpdesk.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import integrador2.helpdesk.enums.UserType;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +15,8 @@ import integrador2.helpdesk.dto.*;
 import integrador2.helpdesk.enums.Status;
 import integrador2.helpdesk.model.*;
 import integrador2.helpdesk.repository.*;
+import integrador2.helpdesk.dto.TicketHistoryResponse;
+
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,8 @@ public class TicketService {
     private final SlaService slaService;
     private final TicketHistoryService historySrv;
     private final DepartmentRepository  deptRepo;
+    private final TicketHistoryRepository ticketHistoryRepo;
+
 
     @Transactional
     public TicketResponse criar(TicketRequest dto, User cliente) {
@@ -128,5 +133,33 @@ public class TicketService {
                 "Técnico %s assumiu o chamado".formatted(tecnico.getNome()));
     }
 
+    public TicketDetailResponse getTicketDetails(Long id, User usuario) {
+        Ticket ticket = ticketRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
 
+        verificarPermissaoAcesso(ticket, usuario);
+
+        return TicketDetailResponse.fromTicket(ticket);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TicketHistoryResponse> getTicketHistory(Long id, User usuario) {
+        Ticket ticket = ticketRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
+        verificarPermissaoAcesso(ticket, usuario);
+        List<TicketHistory> history = ticketHistoryRepo.findHistoryByTicketId(id);
+        return history.stream()
+                .map(TicketHistoryResponse::fromHistory)
+                .collect(Collectors.toList());
+    }
+
+    private void verificarPermissaoAcesso(Ticket ticket, User usuario) {
+        boolean hasAccess = ticket.getCliente().getId().equals(usuario.getId()) ||
+                (ticket.getTecnico() != null && ticket.getTecnico().getId().equals(usuario.getId())) ||
+                usuario.getTipo() == UserType.GESTOR;
+
+        if (!hasAccess) {
+            throw new AccessDeniedException("Você não tem permissão para acessar este chamado");
+        }
+    }
 }

@@ -12,6 +12,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/tickets")
 @RequiredArgsConstructor
@@ -88,5 +90,31 @@ public class TicketController {
         return (page == null || size == null)
                 ? service.listarTodos(status)
                 : service.listarPorStatus(status,page,size);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TicketDetailResponse> getTicketById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User usuario = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        TicketDetailResponse detail = service.getTicketDetails(id, usuario);
+
+        return ResponseEntity.ok(detail);
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<TicketHistoryResponse>> getTicketHistory(
+            @PathVariable Long id,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User usuario = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        List<TicketHistoryResponse> history = service.getTicketHistory(id, usuario);
+
+        return ResponseEntity.ok(history);
     }
 }
