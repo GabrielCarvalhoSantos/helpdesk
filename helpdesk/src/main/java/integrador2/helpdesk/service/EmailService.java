@@ -28,4 +28,13 @@ public class EmailService {
         mail.send(msg);
     }
 
+    public void enviarMensagem(String destino, String titulo, String corpo) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setTo(destino);
+        msg.setSubject(titulo);
+        msg.setText(corpo);
+        mail.send(msg);
+    }
+
+
 }
