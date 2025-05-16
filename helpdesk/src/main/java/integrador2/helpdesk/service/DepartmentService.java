@@ -15,7 +15,7 @@ public class DepartmentService {
     private final DepartmentRepository repo;
 
     public List<DepartmentDTO> list(){
-        return repo.findByAtivoTrue().stream().map(this::toDTO).toList();
+        return repo.findAll().stream().map(this::toDTO).toList();
     }
 
     @Transactional
