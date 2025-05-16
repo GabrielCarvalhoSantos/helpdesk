@@ -1,6 +1,7 @@
 package integrador2.helpdesk.controller;
 
 import integrador2.helpdesk.dto.*;
+import integrador2.helpdesk.enums.Priority;
 import integrador2.helpdesk.enums.Status;
 import integrador2.helpdesk.model.Ticket;
 import integrador2.helpdesk.model.User;
@@ -148,4 +149,12 @@ public class TicketController {
         service.addComment(id, request.getComment(), usuario);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/{id}/prioridade")
+    @PreAuthorize("hasRole('TECNICO')")
+    public void mudarPrioridade(@PathVariable Long id, @RequestParam Priority novaPrioridade,
+                                @AuthenticationPrincipal User principal) {
+        service.mudarPrioridade(id, novaPrioridade, principal);
+    }
+
 }

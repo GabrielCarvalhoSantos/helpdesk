@@ -1,15 +1,18 @@
 package integrador2.helpdesk.service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import integrador2.helpdesk.enums.Priority;
 import integrador2.helpdesk.enums.UserType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import integrador2.helpdesk.dto.*;
 import integrador2.helpdesk.enums.Status;
@@ -45,7 +48,6 @@ public class TicketService {
                 .categoria(categoria)
                 .departamento(departamento)        //  ✓
                 .cliente(cliente)
-                .prazoSla(slaService.calcularPrazo(categoria, dto.getPrioridade()))
                 .build();
         ticketRepo.save(t);
         historySrv.log(t, cliente, null, Status.ABERTO, "Chamado criado");
@@ -140,27 +142,30 @@ public class TicketService {
             throw new IllegalArgumentException("Somente técnicos podem assumir");
         }
 
-        Ticket t = ticketRepo.findById(id).orElseThrow(
-                () -> new IllegalArgumentException("Chamado não encontrado")
-        );
+        Ticket t = ticketRepo.findById(id).orElseThrow(() ->
+                new IllegalArgumentException("Chamado não encontrado"));
 
-        // Verificar se já existe um técnico atribuído
         if (t.getTecnico() != null) {
             throw new IllegalStateException("Este chamado já está sendo atendido por " + t.getTecnico().getNome());
         }
 
-        // Verificar se o chamado está em um estado que pode ser assumido (apenas ABERTO)
         if (t.getStatus() != Status.ABERTO) {
-            throw new IllegalStateException("Apenas chamados com status ABERTO podem ser assumidos");
+            throw new IllegalStateException("Apenas chamados ABERTOS podem ser assumidos");
         }
 
         t.setTecnico(tecnico);
         t.setStatus(Status.EM_ATENDIMENTO);
+
+        // ⏰ Ativa o SLA aqui:
+        Instant prazo = slaService.calcularPrazo(t.getCategoria(), t.getPrioridade());
+        t.setPrazoSla(prazo);
+
         ticketRepo.save(t);
 
         historySrv.log(t, tecnico, Status.ABERTO, Status.EM_ATENDIMENTO,
                 "Técnico %s assumiu o chamado".formatted(tecnico.getNome()));
     }
+
 
     public TicketDetailResponse getTicketDetails(Long id, User usuario) {
         Ticket ticket = ticketRepo.findById(id)
@@ -220,4 +225,16 @@ public class TicketService {
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public void mudarPrioridade(Long id, Priority nova, User tecnico) {
+        Ticket t = ticketRepo.findById(id).orElseThrow();
+        Priority anterior = t.getPrioridade();
+        t.setPrioridade(nova);
+        t.setPrazoSla(slaService.calcularPrazo(t.getCategoria(), nova));
+        ticketRepo.save(t);
+        historySrv.log(t, tecnico, null, null,
+                "Prioridade alterada de %s para %s".formatted(anterior, nova));
+    }
+
 }
