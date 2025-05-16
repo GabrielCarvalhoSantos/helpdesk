@@ -31,7 +31,8 @@ public class TicketService {
     private final TicketHistoryService historySrv;
     private final DepartmentRepository  deptRepo;
     private final TicketHistoryRepository ticketHistoryRepo;
-
+    private final NotificacaoService notificacaoService;
+    private final UserRepository userRepo;
 
     @Transactional
     public TicketResponse criar(TicketRequest dto, User cliente) {
@@ -51,6 +52,17 @@ public class TicketService {
                 .build();
         ticketRepo.save(t);
         historySrv.log(t, cliente, null, Status.ABERTO, "Chamado criado");
+
+        if (t.getPrioridade() == Priority.ALTA) {
+            List<User> tecnicos = userRepo.findByTipo(UserType.TECNICO);
+            for (User tecnico : tecnicos) {
+                notificacaoService.notificar(
+                        tecnico,
+                        "Novo chamado de ALTA prioridade criado: #" + t.getId()
+                );
+            }
+        }
+
         return toResponse(t);
     }
 
@@ -63,6 +75,14 @@ public class TicketService {
         Status antigo = t.getStatus();
         t.setStatus(novoStatus);
         ticketRepo.save(t);
+
+        if (novoStatus == Status.AGUARDANDO_CLIENTE || novoStatus == Status.RESOLVIDO) {
+            notificacaoService.notificar(
+                    t.getCliente(),
+                    "Seu chamado #" + t.getId() + " foi atualizado para " + novoStatus
+            );
+        }
+
 
         historySrv.log(t, usuario, antigo, novoStatus, "Status alterado");
     }
@@ -161,6 +181,11 @@ public class TicketService {
         t.setPrazoSla(prazo);
 
         ticketRepo.save(t);
+
+        notificacaoService.notificar(
+                t.getCliente(),
+                "Um técnico assumiu o chamado #" + t.getId()
+        );
 
         historySrv.log(t, tecnico, Status.ABERTO, Status.EM_ATENDIMENTO,
                 "Técnico %s assumiu o chamado".formatted(tecnico.getNome()));

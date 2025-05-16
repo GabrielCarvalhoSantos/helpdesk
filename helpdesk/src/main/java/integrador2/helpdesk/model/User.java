@@ -22,6 +22,15 @@ public class User {
     @Enumerated(EnumType.STRING) @Column(nullable = false)
     private UserType tipo;               // CLIENTE ou TECNICO
 
+    @Column(nullable = false)
+    private boolean notificarAtualizacao = true;
+
+    @Column(nullable = false)
+    private boolean notificarFechamento = true;
+
+    @Column(nullable = false)
+    private boolean notificarPorEmail = true;
+
     @Builder.Default
     private Boolean ativo = false;
 }
