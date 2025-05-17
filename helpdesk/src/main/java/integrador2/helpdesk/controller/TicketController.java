@@ -171,7 +171,7 @@ public class TicketController {
     @GetMapping("/estatisticas/desempenho-tecnicos")
     @PreAuthorize("hasRole('GESTOR')")
     public ResponseEntity<List<DesempenhoTecnicoDTO>> getDesempenhoTecnicos() {
-        return ResponseEntity.ok(service.contarChamadosResolvidosPorTecnico());
+        return ResponseEntity.ok(service.getDesempenhoTecnicos());
     }
 
 }

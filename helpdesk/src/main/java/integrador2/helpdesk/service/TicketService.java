@@ -2,7 +2,9 @@ package integrador2.helpdesk.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -306,16 +308,48 @@ public class TicketService {
                 .toList();
     }
 
-    public List<DesempenhoTecnicoDTO> contarChamadosResolvidosPorTecnico() {
-        return ticketRepo.findAll().stream()
-                .filter(t -> t.getTecnico() != null && t.getStatus() == Status.RESOLVIDO)
-                .collect(Collectors.groupingBy(
-                        t -> t.getTecnico().getNome(),
-                        Collectors.counting()
-                ))
-                .entrySet().stream()
-                .map(e -> new DesempenhoTecnicoDTO(e.getKey(), e.getValue()))
+    public List<DesempenhoTecnicoDTO> getDesempenhoTecnicos() {
+        List<Ticket> tickets = ticketRepo.findAll().stream()
+                .filter(t -> t.getTecnico() != null)
                 .toList();
+
+        Map<String, List<Ticket>> ticketsPorTecnico = tickets.stream()
+                .collect(Collectors.groupingBy(t -> t.getTecnico().getNome()));
+
+        List<DesempenhoTecnicoDTO> resultado = new ArrayList<>();
+
+        for (Map.Entry<String, List<Ticket>> entry : ticketsPorTecnico.entrySet()) {
+            String nome = entry.getKey();
+            List<Ticket> chamados = entry.getValue();
+
+            long atribuídos = chamados.size();
+            long resolvidos = chamados.stream()
+                    .filter(t -> t.getStatus() == Status.RESOLVIDO || t.getStatus() == Status.FECHADO)
+                    .count();
+
+            double mediaHoras = chamados.stream()
+                    .filter(t -> t.getAbertoEm() != null && t.getFechadoEm() != null)
+                    .mapToDouble(t -> {
+                        long minutos = Duration.between(t.getAbertoEm(), t.getFechadoEm()).toMinutes();
+                        return Math.max(minutos, 0) / 60.0;
+                    })
+                    .average().orElse(0.0);
+
+            int taxa = atribuídos > 0 ? (int) ((resolvidos * 100) / atribuídos) : 0;
+
+            String classificacao = "Sem Avaliação";
+            if (atribuídos > 0) {
+                if (taxa >= 90 && mediaHoras <= 24) classificacao = "Excelente";
+                else if (taxa >= 75 && mediaHoras <= 48) classificacao = "Bom";
+                else if (taxa >= 50) classificacao = "Regular";
+                else classificacao = "Precisa Melhorar";
+            }
+
+            resultado.add(new DesempenhoTecnicoDTO(nome, atribuídos, resolvidos, taxa + "%", Math.round(mediaHoras * 10.0) / 10.0, classificacao));
+        }
+
+        return resultado;
     }
+
 
 }

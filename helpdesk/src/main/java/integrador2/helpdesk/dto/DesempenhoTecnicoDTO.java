@@ -6,6 +6,11 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class DesempenhoTecnicoDTO {
-    private String nomeTecnico;
-    private long totalResolvidos;
+    private String nome;
+    private long atribuídos;
+    private long resolvidos;
+    private String taxaResolucao;
+    private double mediaHoras;
+    private String classificacao;
 }
+
