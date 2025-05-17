@@ -152,9 +152,20 @@ public class TicketController {
 
     @PutMapping("/{id}/prioridade")
     @PreAuthorize("hasRole('TECNICO')")
-    public void mudarPrioridade(@PathVariable Long id, @RequestParam Priority novaPrioridade,
-                                @AuthenticationPrincipal User principal) {
-        service.mudarPrioridade(id, novaPrioridade, principal);
+    public void mudarPrioridade(
+            @PathVariable Long id,
+            @RequestParam Priority novaPrioridade,
+            @RequestBody(required = false) PrioridadeComComentarioDTO dto,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User tecnico = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        String comentario = (dto != null && dto.getComment() != null)
+                ? dto.getComment()
+                : "Sem justificativa informada";
+
+        service.mudarPrioridade(id, novaPrioridade, tecnico, comentario);
     }
 
     @GetMapping("/sla/conformidade")

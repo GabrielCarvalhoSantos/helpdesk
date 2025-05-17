@@ -216,13 +216,33 @@ public class TicketService {
     public List<TicketHistoryResponse> getTicketHistory(Long id, User usuario) {
         Ticket ticket = ticketRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
-        verificarPermissaoAcesso(ticket, usuario);
+
+        // Modificar a verificação de permissão - permitir acesso para todos os técnicos
+        verificarPermissaoHistorico(ticket, usuario);
+
         List<TicketHistory> history = ticketHistoryRepo.findHistoryByTicketId(id);
         return history.stream()
                 .map(TicketHistoryResponse::fromHistory)
                 .collect(Collectors.toList());
     }
 
+    // Método separado para verificar permissão ao histórico
+    private void verificarPermissaoHistorico(Ticket ticket, User usuario) {
+        // Técnicos e gestores sempre podem ver o histórico
+        if (usuario.getTipo() == UserType.TECNICO || usuario.getTipo() == UserType.GESTOR) {
+            return; // Permissão concedida
+        }
+
+        // Para clientes, somente os próprios chamados
+        if (usuario.getTipo() == UserType.CLIENTE && ticket.getCliente().getId().equals(usuario.getId())) {
+            return; // Permissão concedida
+        }
+
+        // Se chegar aqui, não tem permissão
+        throw new AccessDeniedException("Você não tem permissão para acessar este histórico");
+    }
+
+    // O método original verificarPermissaoAcesso deve ser mantido para outras operações
     private void verificarPermissaoAcesso(Ticket ticket, User usuario) {
         boolean hasAccess = ticket.getCliente().getId().equals(usuario.getId()) ||
                 (ticket.getTecnico() != null && ticket.getTecnico().getId().equals(usuario.getId())) ||
@@ -261,14 +281,27 @@ public class TicketService {
     }
 
     @Transactional
-    public void mudarPrioridade(Long id, Priority nova, User tecnico) {
+    public void mudarPrioridade(Long id, Priority nova, User tecnico, String comentario) {
         Ticket t = ticketRepo.findById(id).orElseThrow();
         Priority anterior = t.getPrioridade();
         t.setPrioridade(nova);
         t.setPrazoSla(slaService.calcularPrazo(t.getCategoria(), nova));
         ticketRepo.save(t);
-        historySrv.log(t, tecnico, null, null,
-                "Prioridade alterada de %s para %s".formatted(anterior, nova));
+
+        // Registrar a alteração no histórico com o comentário
+        String mensagem = "Prioridade alterada de %s para %s. Justificativa: %s"
+                .formatted(anterior, nova, comentario);
+
+        historySrv.log(t, tecnico, null, null, mensagem);
+
+        // Notificar o cliente sobre a alteração
+        if (t.getCliente() != null) {
+            notificacaoService.notificar(
+                    t.getCliente(),
+                    "Prioridade do seu chamado #" + t.getId() + " foi alterada de " +
+                            anterior + " para " + nova + ". Justificativa: " + comentario
+            );
+        }
     }
 
     public double calcularConformidadeSla() {
