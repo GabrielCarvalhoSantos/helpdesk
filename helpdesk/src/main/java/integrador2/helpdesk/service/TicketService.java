@@ -184,6 +184,7 @@ public class TicketService {
 
         t.setTecnico(tecnico);
         t.setStatus(Status.EM_ATENDIMENTO);
+        t.setAssumidoEm(Instant.now()); // <-- NOVO
 
         // ⏰ Ativa o SLA aqui:
         Instant prazo = slaService.calcularPrazo(t.getCategoria(), t.getPrioridade());
@@ -199,7 +200,6 @@ public class TicketService {
         historySrv.log(t, tecnico, Status.ABERTO, Status.EM_ATENDIMENTO,
                 "Técnico %s assumiu o chamado".formatted(tecnico.getNome()));
     }
-
 
     public TicketDetailResponse getTicketDetails(Long id, User usuario) {
         Ticket ticket = ticketRepo.findById(id)
@@ -291,12 +291,12 @@ public class TicketService {
                 .collect(Collectors.toSet());
 
         var mediasPorCategoria = ticketRepo.findAll().stream()
-                .filter(t -> t.getFechadoEm() != null && t.getAbertoEm() != null)
-                .filter(t -> !t.getFechadoEm().isBefore(t.getAbertoEm()))
+                .filter(t -> t.getFechadoEm() != null && t.getAssumidoEm() != null)
+                .filter(t -> !t.getFechadoEm().isBefore(t.getAssumidoEm()))
                 .collect(Collectors.groupingBy(
                         t -> t.getCategoria().getNome(),
                         Collectors.averagingDouble(t ->
-                                Math.max(0, Duration.between(t.getAbertoEm(), t.getFechadoEm()).toMinutes()))
+                                Math.max(0, Duration.between(t.getAssumidoEm(), t.getFechadoEm()).toMinutes()))
                 ));
 
         return todasCategorias.stream()
@@ -328,9 +328,9 @@ public class TicketService {
                     .count();
 
             double mediaHoras = chamados.stream()
-                    .filter(t -> t.getAbertoEm() != null && t.getFechadoEm() != null)
+                    .filter(t -> t.getAssumidoEm() != null && t.getFechadoEm() != null)
                     .mapToDouble(t -> {
-                        long minutos = Duration.between(t.getAbertoEm(), t.getFechadoEm()).toMinutes();
+                        long minutos = Duration.between(t.getAssumidoEm(), t.getFechadoEm()).toMinutes();
                         return Math.max(minutos, 0) / 60.0;
                     })
                     .average().orElse(0.0);
@@ -345,11 +345,10 @@ public class TicketService {
                 else classificacao = "Precisa Melhorar";
             }
 
-            resultado.add(new DesempenhoTecnicoDTO(nome, atribuídos, resolvidos, taxa + "%", Math.round(mediaHoras * 10.0) / 10.0, classificacao));
+            resultado.add(new DesempenhoTecnicoDTO(nome, atribuídos, resolvidos,
+                    taxa + "%", Math.round(mediaHoras * 10.0) / 10.0, classificacao));
         }
-
         return resultado;
     }
-
 
 }

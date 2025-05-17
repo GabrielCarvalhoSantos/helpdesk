@@ -70,6 +70,7 @@ public class TicketController {
     public void assign(@PathVariable Long id,
                        @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal){
         var tecnico = userRepo.findByEmail(principal.getUsername()).orElseThrow();
+
         service.atribuirTecnico(id, tecnico);
     }
 

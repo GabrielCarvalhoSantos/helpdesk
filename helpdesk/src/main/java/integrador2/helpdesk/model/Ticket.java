@@ -5,6 +5,7 @@ import integrador2.helpdesk.enums.Status;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -40,6 +41,9 @@ public class Ticket {
     @ManyToOne(optional = false)
     @JoinColumn(name = "departamento_id")   // ← garante o nome da coluna
     private Department departamento;
+
+    @Column(name = "assumido_em")
+    private Instant assumidoEm;
 
     /** atualiza timestamp sempre que salvar */
     @PreUpdate
