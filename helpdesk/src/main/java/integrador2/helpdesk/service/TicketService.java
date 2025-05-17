@@ -1,5 +1,6 @@
 package integrador2.helpdesk.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -67,6 +68,8 @@ public class TicketService {
     }
 
 
+// Correção no src/main/java/integrador2/helpdesk/service/TicketService.java
+
     @Transactional
     public void mudarStatus(Long id, Status novoStatus, User usuario) {
         Ticket t = ticketRepo.findById(id)
@@ -74,6 +77,11 @@ public class TicketService {
 
         Status antigo = t.getStatus();
         t.setStatus(novoStatus);
+
+        if (novoStatus == Status.RESOLVIDO || novoStatus == Status.FECHADO) {
+            t.setFechadoEm(Instant.now());
+        }
+
         ticketRepo.save(t);
 
         if (novoStatus == Status.AGUARDANDO_CLIENTE || novoStatus == Status.RESOLVIDO) {
@@ -82,7 +90,6 @@ public class TicketService {
                     "Seu chamado #" + t.getId() + " foi atualizado para " + novoStatus
             );
         }
-
 
         historySrv.log(t, usuario, antigo, novoStatus, "Status alterado");
     }
@@ -260,6 +267,55 @@ public class TicketService {
         ticketRepo.save(t);
         historySrv.log(t, tecnico, null, null,
                 "Prioridade alterada de %s para %s".formatted(anterior, nova));
+    }
+
+    public double calcularConformidadeSla() {
+        var chamados = ticketRepo.findAll().stream()
+                .filter(t -> t.getFechadoEm() != null && t.getPrazoSla() != null)
+                .toList();
+
+        if (chamados.isEmpty()) return 100.0;
+
+        long dentroPrazo = chamados.stream()
+                .filter(t -> !t.getFechadoEm().isAfter(t.getPrazoSla()))
+                .count();
+
+        return (100.0 * dentroPrazo) / chamados.size();
+    }
+
+    public List<EstatisticaItemDTO> calcularTempoMedioPorCategoria() {
+        var todasCategorias = categoryRepo.findAll().stream()
+                .map(Category::getNome)
+                .collect(Collectors.toSet());
+
+        var mediasPorCategoria = ticketRepo.findAll().stream()
+                .filter(t -> t.getFechadoEm() != null && t.getAbertoEm() != null)
+                .filter(t -> !t.getFechadoEm().isBefore(t.getAbertoEm()))
+                .collect(Collectors.groupingBy(
+                        t -> t.getCategoria().getNome(),
+                        Collectors.averagingDouble(t ->
+                                Math.max(0, Duration.between(t.getAbertoEm(), t.getFechadoEm()).toMinutes()))
+                ));
+
+        return todasCategorias.stream()
+                .map(nome -> {
+                    double mediaMinutos = mediasPorCategoria.getOrDefault(nome, 0.0);
+                    double mediaHoras = Math.round((mediaMinutos / 60.0) * 10.0) / 10.0;
+                    return new EstatisticaItemDTO(nome, mediaHoras);
+                })
+                .toList();
+    }
+
+    public List<DesempenhoTecnicoDTO> contarChamadosResolvidosPorTecnico() {
+        return ticketRepo.findAll().stream()
+                .filter(t -> t.getTecnico() != null && t.getStatus() == Status.RESOLVIDO)
+                .collect(Collectors.groupingBy(
+                        t -> t.getTecnico().getNome(),
+                        Collectors.counting()
+                ))
+                .entrySet().stream()
+                .map(e -> new DesempenhoTecnicoDTO(e.getKey(), e.getValue()))
+                .toList();
     }
 
 }
