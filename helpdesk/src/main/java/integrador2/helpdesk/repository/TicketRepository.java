@@ -18,8 +18,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     List<Ticket> findByStatus(Status status);     // sem Pageable
 
-    long countByStatus(Status status);                 // KPI rápido
-
     List<Ticket> findByTecnicoId(Long tecnicoId);
 
     List<Ticket> findByStatusAndCliente_Id(Status status, Long clienteId);

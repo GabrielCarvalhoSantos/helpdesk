@@ -168,22 +168,4 @@ public class TicketController {
 
         service.mudarPrioridade(id, novaPrioridade, tecnico, comentario);
     }
-
-    @GetMapping("/sla/conformidade")
-    @PreAuthorize("hasRole('GESTOR')")
-    public ResponseEntity<Double> getSlaConformidade() {
-        return ResponseEntity.ok(service.calcularConformidadeSla());
-    }
-
-    @GetMapping("/tempo-medio/categoria")
-    public ResponseEntity<List<EstatisticaItemDTO>> getTempoMedioPorCategoria() {
-        return ResponseEntity.ok(service.calcularTempoMedioPorCategoria());
-    }
-
-    @GetMapping("/estatisticas/desempenho-tecnicos")
-    @PreAuthorize("hasRole('GESTOR')")
-    public ResponseEntity<List<DesempenhoTecnicoDTO>> getDesempenhoTecnicos() {
-        return ResponseEntity.ok(service.getDesempenhoTecnicos());
-    }
-
 }
