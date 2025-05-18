@@ -226,6 +226,41 @@ public class TicketService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public TicketResponse atualizar(Long id, TicketRequest dto, User cliente) {
+        Ticket t = ticketRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
+
+        // Verificar se o chamado pertence ao cliente
+        if (!t.getCliente().getId().equals(cliente.getId())) {
+            throw new AccessDeniedException("Não é seu chamado");
+        }
+
+        // Verificar se o chamado está em estado aberto e sem técnico
+        if (t.getStatus() != Status.ABERTO || t.getTecnico() != null) {
+            throw new IllegalStateException("Este chamado não pode ser editado");
+        }
+
+        // Atualizar os dados
+        Category categoria = categoryRepo.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new IllegalArgumentException("Categoria inválida"));
+        Department departamento = deptRepo.findById(dto.getDepartamentoId())
+                .orElseThrow(() -> new IllegalArgumentException("Departamento inválido"));
+
+        t.setTitulo(dto.getTitulo());
+        t.setDescricao(dto.getDescricao());
+        t.setPrioridade(dto.getPrioridade());
+        t.setCategoria(categoria);
+        t.setDepartamento(departamento);
+
+        Ticket updated = ticketRepo.save(t);
+
+        // Registrar no histórico
+        historySrv.log(t, cliente, null, null, "Chamado editado pelo cliente");
+
+        return toResponse(updated);
+    }
+
     // Método separado para verificar permissão ao histórico
     private void verificarPermissaoHistorico(Ticket ticket, User usuario) {
         // Técnicos e gestores sempre podem ver o histórico

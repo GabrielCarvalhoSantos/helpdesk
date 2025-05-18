@@ -99,6 +99,18 @@ public class TicketController {
                 : service.listarPorStatus(status, page, size, usuario);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<TicketResponse> atualizar(
+            @PathVariable Long id,
+            @RequestBody TicketRequest dto,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User cliente = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        return ResponseEntity.ok(service.atualizar(id, dto, cliente));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<TicketDetailResponse> getTicketById(
             @PathVariable Long id,
