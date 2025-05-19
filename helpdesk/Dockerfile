@@ -8,9 +8,10 @@ RUN mvn -q -DskipTests package       # cria target/helpdesk-*.jar
 # -------- runtime ---------------
 FROM amazoncorretto:17-alpine
 WORKDIR /app
-COPY --from=builder /app/target/*-SNAPSHOT.jar app.jar
 
-# variáveis que o Docker/K8s/Render vai injetar
 ENV SPRING_PROFILES_ACTIVE=prod
 EXPOSE 8080
+
+COPY --from=builder /app/target/*-SNAPSHOT.jar app.jar
+
 CMD ["java","-jar","app.jar"]

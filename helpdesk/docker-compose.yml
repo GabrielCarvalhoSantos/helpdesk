@@ -6,26 +6,33 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASS:-postgres}
-      POSTGRES_DB: ${DB_NAME:-helpdeskdb}
+      POSTGRES_DB:   ${DB_NAME:-helpdeskdb}
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports: ["5432:5432"]
+    ports:
+      - "5432:5432"
 
   api:
     build: .
     depends_on: [db]
     environment:
-      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-helpdeskdb}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASS: ${DB_PASS:-postgres}
+      DB_URL:      jdbc:postgresql://db:5432/${DB_NAME:-helpdeskdb}
+      DB_USER:     ${DB_USER:-postgres}
+      DB_PASS:     ${DB_PASS:-postgres}
 
-      JWT_SECRET: ${JWT_SECRET}
+      JWT_SECRET:  ${JWT_SECRET}
 
-      MAIL_USER: ${MAIL_USER}
-      MAIL_PASS: ${MAIL_PASS}
-      SPRING_MAIL_HOST: smtp.gmail.com
-      SPRING_MAIL_PORT: 587
-    ports: ["8080:8080"]
+      spring.mail.host:         smtp.gmail.com
+      spring.mail.port:         587
+      spring.mail.username:     ${MAIL_USER}
+      spring.mail.password:     ${MAIL_PASS}
+
+      BACKUP_MAIL_TO:           ${BACKUP_MAIL_TO}
+
+      SPRING_PROFILES_ACTIVE:   prod
+      PORT:                     8080
+    ports:
+      - "8080:8080"
 
 volumes:
   pgdata:
