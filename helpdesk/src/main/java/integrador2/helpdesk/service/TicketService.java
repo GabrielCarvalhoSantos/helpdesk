@@ -184,21 +184,30 @@ public class TicketService {
 
         t.setTecnico(tecnico);
         t.setStatus(Status.EM_ATENDIMENTO);
-        t.setAssumidoEm(Instant.now()); // <-- NOVO
+        t.setAssumidoEm(Instant.now());
 
-        // ⏰ Ativa o SLA aqui:
+        // Ativa o SLA
         Instant prazo = slaService.calcularPrazo(t.getCategoria(), t.getPrioridade());
         t.setPrazoSla(prazo);
 
         ticketRepo.save(t);
 
+        // Formato especial para a mensagem de notificação que o frontend poderá parsear
+        String mensagem = String.format("[CHAMADO:#%d][TITULO:%s][TECNICO:%s] O técnico %s assumiu o chamado #%d - %s",
+                t.getId(),
+                t.getTitulo(),
+                tecnico.getNome(),
+                tecnico.getNome(),
+                t.getId(),
+                t.getTitulo());
+
         notificacaoService.notificar(
                 t.getCliente(),
-                "Um técnico assumiu o chamado #" + t.getId()
+                mensagem
         );
 
         historySrv.log(t, tecnico, Status.ABERTO, Status.EM_ATENDIMENTO,
-                "Técnico %s assumiu o chamado".formatted(tecnico.getNome()));
+                "Técnico " + tecnico.getNome() + " assumiu o chamado");
     }
 
     public TicketDetailResponse getTicketDetails(Long id, User usuario) {
