@@ -70,6 +70,7 @@ public class TicketController {
     public void assign(@PathVariable Long id,
                        @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal){
         var tecnico = userRepo.findByEmail(principal.getUsername()).orElseThrow();
+
         service.atribuirTecnico(id, tecnico);
     }
 
@@ -96,6 +97,18 @@ public class TicketController {
         return (page == null || size == null)
                 ? service.listarTodos(status, usuario)
                 : service.listarPorStatus(status, page, size, usuario);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TicketResponse> atualizar(
+            @PathVariable Long id,
+            @RequestBody TicketRequest dto,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
+
+        User cliente = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        return ResponseEntity.ok(service.atualizar(id, dto, cliente));
     }
 
     @GetMapping("/{id}")
@@ -152,9 +165,19 @@ public class TicketController {
 
     @PutMapping("/{id}/prioridade")
     @PreAuthorize("hasRole('TECNICO')")
-    public void mudarPrioridade(@PathVariable Long id, @RequestParam Priority novaPrioridade,
-                                @AuthenticationPrincipal User principal) {
-        service.mudarPrioridade(id, novaPrioridade, principal);
-    }
+    public void mudarPrioridade(
+            @PathVariable Long id,
+            @RequestParam Priority novaPrioridade,
+            @RequestBody(required = false) PrioridadeComComentarioDTO dto,
+            @AuthenticationPrincipal org.springframework.security.core.userdetails.User principal) {
 
+        User tecnico = userRepo.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
+
+        String comentario = (dto != null && dto.getComment() != null)
+                ? dto.getComment()
+                : "Sem justificativa informada";
+
+        service.mudarPrioridade(id, novaPrioridade, tecnico, comentario);
+    }
 }

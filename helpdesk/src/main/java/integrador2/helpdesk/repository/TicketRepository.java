@@ -1,6 +1,7 @@
 // TicketRepository.java
 package integrador2.helpdesk.repository;
 
+import integrador2.helpdesk.enums.Priority;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.repository.JpaRepository;
 import integrador2.helpdesk.enums.Status;
@@ -18,10 +19,12 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     List<Ticket> findByStatus(Status status);     // sem Pageable
 
-    long countByStatus(Status status);                 // KPI rápido
-
     List<Ticket> findByTecnicoId(Long tecnicoId);
 
     List<Ticket> findByStatusAndCliente_Id(Status status, Long clienteId);
     Page<Ticket> findByStatusAndCliente_Id(Status status, Long clienteId, Pageable page);
+
+    List<Ticket> findByStatusNotIn(List<Status> statuses);
+    List<Ticket> findByPrioridadeAndTecnicoIsNull(Priority prioridade);
+
 }

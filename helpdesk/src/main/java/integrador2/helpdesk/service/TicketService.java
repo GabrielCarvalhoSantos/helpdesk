@@ -1,7 +1,10 @@
 package integrador2.helpdesk.service;
 
+import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -67,6 +70,8 @@ public class TicketService {
     }
 
 
+// Correção no src/main/java/integrador2/helpdesk/service/TicketService.java
+
     @Transactional
     public void mudarStatus(Long id, Status novoStatus, User usuario) {
         Ticket t = ticketRepo.findById(id)
@@ -74,6 +79,11 @@ public class TicketService {
 
         Status antigo = t.getStatus();
         t.setStatus(novoStatus);
+
+        if (novoStatus == Status.RESOLVIDO || novoStatus == Status.FECHADO) {
+            t.setFechadoEm(Instant.now());
+        }
+
         ticketRepo.save(t);
 
         if (novoStatus == Status.AGUARDANDO_CLIENTE || novoStatus == Status.RESOLVIDO) {
@@ -82,7 +92,6 @@ public class TicketService {
                     "Seu chamado #" + t.getId() + " foi atualizado para " + novoStatus
             );
         }
-
 
         historySrv.log(t, usuario, antigo, novoStatus, "Status alterado");
     }
@@ -175,22 +184,31 @@ public class TicketService {
 
         t.setTecnico(tecnico);
         t.setStatus(Status.EM_ATENDIMENTO);
+        t.setAssumidoEm(Instant.now());
 
-        // ⏰ Ativa o SLA aqui:
+        // Ativa o SLA
         Instant prazo = slaService.calcularPrazo(t.getCategoria(), t.getPrioridade());
         t.setPrazoSla(prazo);
 
         ticketRepo.save(t);
 
+        // Formato especial para a mensagem de notificação que o frontend poderá parsear
+        String mensagem = String.format("[CHAMADO:#%d][TITULO:%s][TECNICO:%s] O técnico %s assumiu o chamado #%d - %s",
+                t.getId(),
+                t.getTitulo(),
+                tecnico.getNome(),
+                tecnico.getNome(),
+                t.getId(),
+                t.getTitulo());
+
         notificacaoService.notificar(
                 t.getCliente(),
-                "Um técnico assumiu o chamado #" + t.getId()
+                mensagem
         );
 
         historySrv.log(t, tecnico, Status.ABERTO, Status.EM_ATENDIMENTO,
-                "Técnico %s assumiu o chamado".formatted(tecnico.getNome()));
+                "Técnico " + tecnico.getNome() + " assumiu o chamado");
     }
-
 
     public TicketDetailResponse getTicketDetails(Long id, User usuario) {
         Ticket ticket = ticketRepo.findById(id)
@@ -207,13 +225,68 @@ public class TicketService {
     public List<TicketHistoryResponse> getTicketHistory(Long id, User usuario) {
         Ticket ticket = ticketRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
-        verificarPermissaoAcesso(ticket, usuario);
+
+        // Modificar a verificação de permissão - permitir acesso para todos os técnicos
+        verificarPermissaoHistorico(ticket, usuario);
+
         List<TicketHistory> history = ticketHistoryRepo.findHistoryByTicketId(id);
         return history.stream()
                 .map(TicketHistoryResponse::fromHistory)
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public TicketResponse atualizar(Long id, TicketRequest dto, User cliente) {
+        Ticket t = ticketRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Chamado não encontrado"));
+
+        // Verificar se o chamado pertence ao cliente
+        if (!t.getCliente().getId().equals(cliente.getId())) {
+            throw new AccessDeniedException("Não é seu chamado");
+        }
+
+        // Verificar se o chamado está em estado aberto e sem técnico
+        if (t.getStatus() != Status.ABERTO || t.getTecnico() != null) {
+            throw new IllegalStateException("Este chamado não pode ser editado");
+        }
+
+        // Atualizar os dados
+        Category categoria = categoryRepo.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new IllegalArgumentException("Categoria inválida"));
+        Department departamento = deptRepo.findById(dto.getDepartamentoId())
+                .orElseThrow(() -> new IllegalArgumentException("Departamento inválido"));
+
+        t.setTitulo(dto.getTitulo());
+        t.setDescricao(dto.getDescricao());
+        t.setPrioridade(dto.getPrioridade());
+        t.setCategoria(categoria);
+        t.setDepartamento(departamento);
+
+        Ticket updated = ticketRepo.save(t);
+
+        // Registrar no histórico
+        historySrv.log(t, cliente, null, null, "Chamado editado pelo cliente");
+
+        return toResponse(updated);
+    }
+
+    // Método separado para verificar permissão ao histórico
+    private void verificarPermissaoHistorico(Ticket ticket, User usuario) {
+        // Técnicos e gestores sempre podem ver o histórico
+        if (usuario.getTipo() == UserType.TECNICO || usuario.getTipo() == UserType.GESTOR) {
+            return; // Permissão concedida
+        }
+
+        // Para clientes, somente os próprios chamados
+        if (usuario.getTipo() == UserType.CLIENTE && ticket.getCliente().getId().equals(usuario.getId())) {
+            return; // Permissão concedida
+        }
+
+        // Se chegar aqui, não tem permissão
+        throw new AccessDeniedException("Você não tem permissão para acessar este histórico");
+    }
+
+    // O método original verificarPermissaoAcesso deve ser mantido para outras operações
     private void verificarPermissaoAcesso(Ticket ticket, User usuario) {
         boolean hasAccess = ticket.getCliente().getId().equals(usuario.getId()) ||
                 (ticket.getTecnico() != null && ticket.getTecnico().getId().equals(usuario.getId())) ||
@@ -252,14 +325,27 @@ public class TicketService {
     }
 
     @Transactional
-    public void mudarPrioridade(Long id, Priority nova, User tecnico) {
+    public void mudarPrioridade(Long id, Priority nova, User tecnico, String comentario) {
         Ticket t = ticketRepo.findById(id).orElseThrow();
         Priority anterior = t.getPrioridade();
         t.setPrioridade(nova);
         t.setPrazoSla(slaService.calcularPrazo(t.getCategoria(), nova));
         ticketRepo.save(t);
-        historySrv.log(t, tecnico, null, null,
-                "Prioridade alterada de %s para %s".formatted(anterior, nova));
+
+        // Registrar a alteração no histórico com o comentário
+        String mensagem = "Prioridade alterada de %s para %s. Justificativa: %s"
+                .formatted(anterior, nova, comentario);
+
+        historySrv.log(t, tecnico, null, null, mensagem);
+
+        // Notificar o cliente sobre a alteração
+        if (t.getCliente() != null) {
+            notificacaoService.notificar(
+                    t.getCliente(),
+                    "Prioridade do seu chamado #" + t.getId() + " foi alterada de " +
+                            anterior + " para " + nova + ". Justificativa: " + comentario
+            );
+        }
     }
 
 }

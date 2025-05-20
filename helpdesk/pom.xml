@@ -8,7 +8,7 @@
 	<artifactId>helpdesk</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>helpdesk</name>
-	<description>HelpDesk – Integrador 2</description>
+	<description>HelpDesk – Integrador 2</description>
 
 	<!-- Spring Boot BOM -->
 	<parent>
@@ -22,6 +22,8 @@
 		<java.version>17</java.version>
 		<lombok.version>1.18.32</lombok.version>
 		<jjwt.version>0.12.5</jjwt.version>
+		<!-- garante que resources serão filtrados em UTF-8 -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
 
 	<dependencies>
@@ -58,8 +60,7 @@
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
-
-		<!-- Lombok (compile‑time only) -->
+		<!-- Lombok (compile-time only) -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
@@ -86,7 +87,7 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Devtools (hot‑reload, runtime only) -->
+		<!-- Devtools (hot-reload, runtime only) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
@@ -105,16 +106,20 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- pom.xml  -->
-		<dependency>
-			<groupId>org.springdoc</groupId>
-			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-			<version>2.5.0</version>
-		</dependency>
 	</dependencies>
+
 	<build>
 		<plugins>
-			<!-- Java 17 + Lombok annotation processor -->
+			<!-- permite filtrar resources em UTF-8 -->
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>3.3.1</version>
+				<configuration>
+					<encoding>${project.build.sourceEncoding}</encoding>
+				</configuration>
+			</plugin>
+
+			<!-- Java 17 + Lombok annotation processor -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
